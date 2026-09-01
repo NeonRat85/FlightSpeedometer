@@ -11,7 +11,7 @@ jobs:
     name: Lua 5.1 syntax + harness
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # LuaJIT implements the Lua 5.1 language, matching the WoW client.
       - name: Install LuaJIT
