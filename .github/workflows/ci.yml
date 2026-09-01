@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Lua 5.1 syntax + harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # LuaJIT implements the Lua 5.1 language, matching the WoW client.
+      - name: Install LuaJIT
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y luajit
+          luajit -v
+
+      - name: Syntax check
+        run: luajit -e "assert(loadfile('FlightSpeedometer.lua'))"
+
+      - name: Run harness
+        run: luajit tests/harness.lua FlightSpeedometer.lua
+
+      # The .toc drives what the client loads, so a missing file is fatal.
+      - name: Verify .toc references resolve
+        run: |
+          status=0
+          while IFS= read -r line; do
+            line=${line%$'\r'}
+            case "$line" in
+              \#\#*|"") continue ;;
+            esac
+            file=${line//\\//}
+            if [ ! -f "$file" ]; then
+              echo "::error::.toc references missing file: $file"
+              status=1
+            else
+              echo "ok: $file"
+            fi
+          done < FlightSpeedometer.toc
+          exit $status

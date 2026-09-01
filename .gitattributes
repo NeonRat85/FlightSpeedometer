@@ -1,0 +1,9 @@
+# Keep everything LF, in the index and in working copies on every platform.
+* text=auto eol=lf
+
+# Binary assets, should any be added later.
+*.png  binary
+*.jpg  binary
+*.tga  binary
+*.blp  binary
+*.ttf  binary

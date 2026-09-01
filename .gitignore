@@ -1,0 +1,22 @@
+# Windows / OneDrive
+Thumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Lua artefacts
+*.o
+*.out
+luac.out
+
+# Addon packager output
+.release/
