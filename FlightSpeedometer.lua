@@ -18,6 +18,9 @@ local SMOOTH_WINDOW   = 0.15          -- seconds for the display to catch up
 
 local PREFIX = "|cff33ccffFlight Speedometer:|r "
 
+-- Shown in place of the sub-line while the client is withholding speed.
+local SECRET_TEXT = "hidden in combat"
+
 --------------------------------------------------------------------------------
 -- Saved settings
 --------------------------------------------------------------------------------
@@ -40,6 +43,7 @@ local defaults = {
 local db
 local displaySpeed = 0     -- smoothed value, yards/sec
 local sessionMax   = 0     -- yards/sec
+local secretHold   = false -- true while the client is withholding speed
 
 local OpenOptions          -- filled in once the options panel is built
 
@@ -72,6 +76,17 @@ local function SpeedColor(pct)
     return 1, 0.35, 0.25
 end
 
+-- In combat the client hands addons a "secret" number for player speed.
+-- Tainted code may not compare, do arithmetic on, or boolean-test such a
+-- value; attempting it throws. issecretvalue is the sanctioned test, and
+-- Blizzard's own SecureTypes.lua uses this exact idiom. It is absent on
+-- older clients, hence the nil check.
+local issecretvalue = issecretvalue
+
+local function IsSecret(v)
+    return issecretvalue ~= nil and issecretvalue(v)
+end
+
 -- GetUnitSpeed reports 0 while skyriding, so the glide velocity has to come
 -- from GetGlidingInfo's third return instead. That value is also yards/sec:
 -- roughly 65 at max dive, up to about 100 with abilities.
@@ -79,7 +94,8 @@ end
 local function GetPlayerSpeed()
     if C_PlayerInfo and C_PlayerInfo.GetGlidingInfo then
         local isGliding, _, forwardSpeed = C_PlayerInfo.GetGlidingInfo()
-        if isGliding and forwardSpeed then
+        -- isGliding gets boolean-tested below, so it needs the guard too.
+        if not IsSecret(isGliding) and isGliding and forwardSpeed then
             return forwardSpeed, true
         end
     end
@@ -402,8 +418,23 @@ driver:SetScript("OnUpdate", function(_, elapsed)
     if not (airborne or db.showAlways) then
         if f:IsShown() then f:Hide() end
         displaySpeed = 0
+        secretHold = false
         return
     end
+
+    -- Player speed goes secret in combat. Nothing below may touch the value,
+    -- so hold the last good reading, grey it out to show it is not live, and
+    -- wait for combat to end rather than throwing on every frame.
+    if IsSecret(yps) then
+        if not secretHold then
+            secretHold = true
+            speedText:SetTextColor(0.55, 0.55, 0.55)
+            subText:SetText(SECRET_TEXT)
+        end
+        if not f:IsShown() then f:Show() end
+        return
+    end
+    secretHold = false
 
     -- Track the max whenever the readout is live, ground speed included:
     -- gating this on `airborne` left it reading 0 while showing a real speed.

@@ -2,7 +2,7 @@
 ## Title: Flight Speedometer
 ## Notes: Shows your mount/flight speed in km/h or mph.
 ## Author: NeonRat85
-## Version: 1.5.0
+## Version: 1.6.0
 ## SavedVariables: FlightSpeedometerDB
 ## IconTexture: Interface\Icons\ability_mount_flyingcarpet
 

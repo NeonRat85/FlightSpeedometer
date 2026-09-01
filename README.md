@@ -2,7 +2,7 @@
 
 A World of Warcraft addon that displays your movement speed in real-world units — km/h or mph — while flying, skyriding, or on a flight path.
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![Interface](https://img.shields.io/badge/interface-120100-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -68,6 +68,20 @@ local isGliding, canGlide, forwardSpeed = C_PlayerInfo.GetGlidingInfo()
 ```
 
 The addon uses `forwardSpeed` whenever `isGliding` is true and falls back to `GetUnitSpeed` otherwise. The same call doubles as the airborne check, so it costs one API call per tick.
+
+### Speed is secret in combat
+
+In combat the client returns player speed as a **secret value**. Tainted code — which means any addon — may not compare it, do arithmetic on it, or boolean-test it; attempting any of those throws. There is no way to convert a secret number into km/h.
+
+The addon tests with `issecretvalue` and, while speed is withheld, holds the last good reading greyed out with *hidden in combat* on the sub-line. It resumes automatically when combat ends.
+
+```lua
+local issecretvalue = issecretvalue   -- absent on older clients
+
+local function IsSecret(v)
+    return issecretvalue ~= nil and issecretvalue(v)
+end
+```
 
 ## Development
 

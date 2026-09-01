@@ -98,8 +98,28 @@ SlashCmdList = {}
 
 local mockSpeed, mockFlying, mockGliding, mockTaxi = 0, false, false, false
 local mockGlideSpeed = 0
+
+-- The live client returns a "secret" number for player speed in combat and
+-- throws if tainted code compares or does arithmetic on it. Real secrets are a
+-- VM feature we cannot construct here, so this stands in for one: a table whose
+-- metamethods throw the way the real value does, paired with an issecretvalue
+-- that recognises it. Any unguarded use in the addon therefore errors here in
+-- exactly the place it errored in game.
+local mockSecretCombat = false
+local SECRET = setmetatable({}, {
+    __lt  = function() error("attempt to compare a secret number value", 2) end,
+    __le  = function() error("attempt to compare a secret number value", 2) end,
+    __add = function() error("attempt to perform arithmetic on a secret number value", 2) end,
+    __sub = function() error("attempt to perform arithmetic on a secret number value", 2) end,
+    __mul = function() error("attempt to perform arithmetic on a secret number value", 2) end,
+    __div = function() error("attempt to perform arithmetic on a secret number value", 2) end,
+    __tostring = function() return "<secret number>" end,
+})
+function issecretvalue(v) return v == SECRET end
+
 -- Mirrors the live client: GetUnitSpeed reads 0 while gliding.
 function GetUnitSpeed(unit)
+    if mockSecretCombat then return SECRET, 7, 21.7, 4.72 end
     if mockGliding then return 0, 7, 21.7, 4.72 end
     return mockSpeed, 7, 21.7, 4.72
 end
@@ -198,6 +218,28 @@ mockFlying, mockSpeed = false, 15.4           -- 220% ground mount
 tick(2)
 check("ground speed shown", speedText:GetText(), "50.7 km/h")
 check("ground max no longer 0.0", subText:GetText():match("max ([%d%.]+)"), "50.7")
+SlashCmdList["FLIGHTSPEEDOMETER"]("always")   -- back off
+SlashCmdList["FLIGHTSPEEDOMETER"]("clear")
+
+print("\n[6c] secret speed in combat must not throw")
+SlashCmdList["FLIGHTSPEEDOMETER"]("clear")
+SlashCmdList["FLIGHTSPEEDOMETER"]("always")   -- as the reporter had it configured
+mockFlying, mockGliding, mockSpeed = false, false, 15.4
+tick(2)
+local lastGood = speedText:GetText()
+check("live reading before combat", lastGood, "50.7 km/h")
+
+mockSecretCombat = true
+local combatOk, combatErr = pcall(tick, 5)   -- 5 ticks, as the client would
+check("no error on secret speed", combatOk and "ok" or tostring(combatErr), "ok")
+check("last good value held", speedText:GetText(), lastGood)
+check("sub-line marks it stale", subText:GetText(), "hidden in combat")
+check("still visible in combat", f:IsShown(), true)
+
+mockSecretCombat = false
+tick(2)
+check("recovers after combat", speedText:GetText(), "50.7 km/h")
+check("sub-line restored", subText:GetText():match("^%d+%%") ~= nil, true)
 SlashCmdList["FLIGHTSPEEDOMETER"]("always")   -- back off
 SlashCmdList["FLIGHTSPEEDOMETER"]("clear")
 
